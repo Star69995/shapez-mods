@@ -1,5 +1,7 @@
 # Status Display
 
+![Status Display](images/logo.png)
+
 **A live dashboard for your factory: see the wire values you care about on screen, from anywhere on the map.**
 
 ## Why you want it
@@ -18,6 +20,8 @@ Paint line        : red
 - Show the **shape the Hub is asking for** (e.g. from the goal-shape wire output of [Micro Hub](https://github.com/Star69995/Shapez.io-Mods)) or the shape a production line is making.
 - Monitor **colors, shapes and 0/1** values - shapes are drawn as small images, not just codes.
 - Add as many blocks as you want; each gets its own labeled row, and rows disappear when the block is removed.
+
+![Status Display in game](images/in-game.png)
 
 ## How to use
 

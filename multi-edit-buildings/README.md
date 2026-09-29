@@ -1,5 +1,7 @@
 # Multi-Edit Buildings
 
+![Multi-Edit Buildings](images/logo.png)
+
 **Change the settings of dozens of buildings in one go instead of clicking them one by one.**
 
 ## Why you want it

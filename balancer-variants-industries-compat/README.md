@@ -1,5 +1,7 @@
 # BalancerVariants - Industries Compat
 
+![BalancerVariants - Industries Compat](images/logo.png)
+
 **Lets you use the big balancers from Balancer Variants while playing Shapez Industries.**
 
 ## Why you need it
