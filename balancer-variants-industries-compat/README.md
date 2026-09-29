@@ -10,6 +10,13 @@ But when [Shapez Industries](https://shapez.mod.io/shapez-industries) is also in
 
 No settings, nothing to click - just install it next to the other two mods.
 
+## How to use
+
+1. Install **Balancer Variants**, **Shapez Industries** and this mod (all three `.js` files in your `mods` folder).
+2. Start or load a Shapez Industries game.
+3. Select the **Balancer** in the toolbar and press **T** (cycle variants) to reach the 3x1 ... 10x1 balancers - they appear next to Industries' own balancer variants.
+4. Place them like any balancer: belts go in on one side and come out balanced on the other.
+
 ## How it works
 
 It waits until all mods are loaded, then adds the Balancer Variants variants back to the balancer's list and sends them to Balancer Variants' own setup code, while leaving every Industries variant to Industries.
