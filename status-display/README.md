@@ -15,7 +15,7 @@ Paint line        : red
 ```
 
 - Watch **storage-full signals** to know when a line is backing up.
-- Show the **current Hub goal** (with a Hub goal signal) or the shape a production line is making.
+- Show the **shape the Hub is asking for** (e.g. from the goal-shape wire output of [Micro Hub](https://github.com/Star69995/Shapez.io-Mods)) or the shape a production line is making.
 - Monitor **colors, shapes and 0/1** values - shapes are drawn as small images, not just codes.
 - Add as many blocks as you want; each gets its own labeled row, and rows disappear when the block is removed.
 
