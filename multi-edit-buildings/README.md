@@ -16,6 +16,8 @@ With this mod you select them all with the normal mass selector (Ctrl+drag) and 
 - **Set the limit of many Custom Storages** at once (a number or ∞).
 - **Rewrite many notes** at once (text and font size).
 
+![The Multi-Edit panel](images/panel.png)
+
 ## How to use
 
 1. Select buildings with **Ctrl+drag** (also works with the [Multi Layer Copy](https://github.com/Star69995/shapezmod_multilayercopy) mod's selection).
@@ -32,6 +34,10 @@ With this mod you select them all with the normal mass selector (Ctrl+drag) and 
 
 Your last Seq Fill settings are remembered.
 
+![Seq Fill](images/seq-fill.png)
+
+![Re-channel 630 teleporters](images/teleporters-630.png)
+
 ## Supported buildings
 
 | Building | What you can edit | Needs mod |
@@ -43,6 +49,15 @@ Your last Seq Fill settings are remembered.
 | Note Building | Text and font size | [In-Game Notes](https://github.com/derekShaheen/Shapez.io-Mods) |
 
 Types from other mods only show up when that mod is installed.
+
+![Custom Storage limits](images/custom-storage.png)
+
+## Compatibility
+
+- **Game version:** shapez 1.5.0 or newer (the modding update).
+- **Selection:** works with the normal mass selector and with the [Multi Layer Copy](https://mod.io/g/shapez/m/multi-layer-copy-blueprint) selection (both layers at once).
+- **Optional mods it supports:** [Item Teleporter](https://mod.io/g/shapez/m/item-teleporter), [Pnmod Transceiver](https://mod.io/g/shapez/m/pnmod-transceiver), [Custom Storage v2](https://github.com/Star69995/Shapez.io-Mods) and [In-Game Notes](https://github.com/derekShaheen/Shapez.io-Mods) - see the table above. None of them is required.
+- **Not supported:** the base game's regular Storage (it has no editable limit) and buildings from mods that are not in the table.
 
 ## Installation
 

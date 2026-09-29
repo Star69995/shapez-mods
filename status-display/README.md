@@ -23,6 +23,23 @@ Paint line        : red
 
 ![Status Display in game](images/in-game.png)
 
+## What it can show
+
+| Wire value | Shown as |
+|---|---|
+| Shape | A small image of the shape |
+| Boolean (0 / 1) | `0` or `1` |
+| Color | The color's name (`red`, `green`, ...) |
+| Number (from mods with number signals) | The number |
+| No signal | `---` |
+| Anything else | `?` |
+
+## Compatibility
+
+- **Game version:** shapez 1.5.0 or newer (the modding update).
+- **No other mods needed.** Works with any mod that puts values on wires, e.g. the goal-shape output of [Micro Hub](https://github.com/Star69995/Shapez.io-Mods).
+- The Status Block is a building saved in your savegame.
+
 ## How to use
 
 1. On the **wires layer**, place a **Status Block** (wires toolbar).
