@@ -49,6 +49,8 @@ Paint line        : red
 
 ## Installation
 
+Get it on **[mod.io](https://mod.io/g/shapez/m/status-display)**, or download the `.js` file from this folder.
+
 Download the `.js` file, put it in your shapez.io `mods` folder (on Windows: `%APPDATA%\shapez.io\mods`) and restart the game.
 
 ## Author

@@ -61,6 +61,8 @@ Types from other mods only show up when that mod is installed.
 
 ## Installation
 
+Get it on **[mod.io](https://mod.io/g/shapez/m/multi-edit-buildings)**, or download the `.js` file from this folder.
+
 Download the `.js` file, put it in your shapez.io `mods` folder (on Windows: `%APPDATA%\shapez.io\mods`) and restart the game.
 
 ## Author

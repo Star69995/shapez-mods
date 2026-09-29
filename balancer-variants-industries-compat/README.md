@@ -48,6 +48,8 @@ Keep the file name as is: the game loads mods alphabetically and this file must 
 
 ## Installation
 
+Get it on **[mod.io](https://mod.io/g/shapez/m/balancer-variants-industries-compat)**, or download the `.js` file from this folder.
+
 Download the `.js` file, put it in your shapez.io `mods` folder (on Windows: `%APPDATA%\shapez.io\mods`) and restart the game.
 
 ## Author

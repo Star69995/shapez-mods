@@ -4,11 +4,11 @@ Mods for [shapez](https://shapez.io/) made by **Star** ([Star69995](https://gith
 
 ## My mods
 
-| Mod | What it does for you |
-|---|---|
-| [Multi-Edit Buildings](multi-edit-buildings/) | Change the settings of many buildings at once - re-channel a copied blueprint's teleporters, set or sequence-fill dozens of signal generators, set storage limits - instead of clicking each one |
-| [Status Display](status-display/) | A live on-screen dashboard of the wire values you care about (storage full, current goal, colors, shapes), visible from anywhere on the map |
-| [BalancerVariants - Industries Compat](balancer-variants-industries-compat/) | Brings back the big 3x1-10x1 balancers when you play with Shapez Industries |
+| Mod | What it does for you | mod.io |
+|---|---|---|
+| [Multi-Edit Buildings](multi-edit-buildings/) | Change the settings of many buildings at once - re-channel a copied blueprint's teleporters, set or sequence-fill dozens of signal generators, set storage limits - instead of clicking each one | [download](https://mod.io/g/shapez/m/multi-edit-buildings) |
+| [Status Display](status-display/) | A live on-screen dashboard of the wire values you care about (storage full, current goal, colors, shapes), visible from anywhere on the map | [download](https://mod.io/g/shapez/m/status-display) |
+| [BalancerVariants - Industries Compat](balancer-variants-industries-compat/) | Brings back the big 3x1-10x1 balancers when you play with Shapez Industries | [download](https://mod.io/g/shapez/m/balancer-variants-industries-compat) |
 
 ## Mods by others that I modified
 
