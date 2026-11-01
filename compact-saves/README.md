@@ -24,4 +24,8 @@ Every compressed factory keeps the buildings of the original factory inside the 
 
 Download `compact_saves.js`, put it in your shapez.io `mods` folder (on Windows: `%APPDATA%\shapez.io\mods`) and restart the game.
 
+## Screenshots
+
+![Compact Saves in the game's Mods list](images/screenshot-1.png)
+
 mod.io: https://mod.io/g/shapez/m/compact-saves

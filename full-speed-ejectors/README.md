@@ -22,4 +22,10 @@ It adds one small check to the moment an item is ejected and nothing per tick, s
 - Does not touch savegames; remove the file to go back to the old behaviour.
 - No other mods needed. Mods that compute their own throughput (for example a compressed factory) may still show their own numbers.
 
+## Screenshots
+
+![Belts fed by compressed factories carrying full speed](images/screenshot-1.png)
+
+![Full-Speed Ejectors in the game's Mods list](images/screenshot-2.png)
+
 mod.io: https://mod.io/g/shapez/m/full-speed-ejectors

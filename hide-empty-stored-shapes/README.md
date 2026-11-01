@@ -21,4 +21,10 @@ Each time the Statistics list is rebuilt, shapes with zero stock are removed fro
 
 Download `hide_empty_stored_shapes.js`, put it in your shapez.io `mods` folder (on Windows: `%APPDATA%\shapez.io\mods`) and restart the game.
 
+## Screenshots
+
+![Statistics - stored shapes, only shapes with stock](images/screenshot-1.png)
+
+![Statistics - stored shapes as a list](images/screenshot-2.png)
+
 mod.io: https://mod.io/g/shapez/m/hide-empty-stored-shapes

@@ -36,4 +36,10 @@ A small indicator tells you whether what you take out of the Vault keeps arrivin
 
 Download `shape_vault.js`, put it in your shapez.io `mods` folder (on Windows: `%APPDATA%\shapez.io\mods`) and restart the game.
 
+## Screenshots
+
+![The Shape Vault statistics window (F6)](images/screenshot-1.png)
+
+![A Shape Vault with a Vault Extractor](images/screenshot-2.png)
+
 mod.io: https://mod.io/g/shapez/m/shape-vault

@@ -33,4 +33,10 @@ All keys can be rebound in the keybindings settings. The test result is also pri
 - shapez 1.5.0 or newer; no other mods needed. Does not touch savegames, safe to add or remove at any time.
 - Costs are per *system*, not per building type (for example all cutters, painters and mixers share the "Machines" system). Systems added by other mods show under their internal name.
 
+## Screenshots
+
+![The F8 test: what slows the factory the most](images/screenshot-1.png)
+
+![The live panel in the corner](images/screenshot-2.png)
+
 mod.io: https://mod.io/g/shapez/m/performance-monitor

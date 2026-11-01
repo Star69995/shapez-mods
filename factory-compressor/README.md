@@ -48,4 +48,10 @@ Compressing costs blueprint shapes, like pasting the area. Deleting a box refund
 
 Download `factory_compressor.js`, put it in your shapez.io `mods` folder (on Windows: `%APPDATA%\shapez.io\mods`) and restart the game.
 
+## Screenshots
+
+![Two compressed factories showing what they take in and put out](images/screenshot-1.png)
+
+![The Compressed factory dialog](images/screenshot-2.png)
+
 mod.io: https://mod.io/g/shapez/m/factory-compressor
