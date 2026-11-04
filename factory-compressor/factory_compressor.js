@@ -3,7 +3,7 @@ const METADATA = {
     website: "https://github.com/Star69995/shapez-mods/tree/main/factory-compressor",
     author: "Star",
     name: "Factory Compressor",
-    version: "0.8.19",
+    version: "0.8.20",
     id: "factory-compressor",
     description:
         "Select a factory and press K to compress it into one building that runs a light model of it, so the game no longer simulates every belt and machine in it. The box takes the shapes that really arrive (belts, teleporters, Hub) and puts out what the factory would, at the current upgrade speeds. Inputs and outputs that depend on the outside - Hub Extractors, teleporters and Micro Hubs - are never compressed; they stay real buildings at the edge of the box. It shows its name, what it takes and puts out, and whether it runs at full capacity or needs more of a shape. Click it to name it or unpack the original factory (or select several with Ctrl + drag and unpack them all at once); copy and paste it like a building. Compressing costs blueprint shapes, like pasting a blueprint.",
@@ -2153,6 +2153,7 @@ class RegionAnalyzer {
         this.checkTunnels(rect, entities, add);
         this.checkTransceivers(entities, add);
         this.checkMinerChains(rect, entities, add);
+        this.checkHyperlinks(rect, entities, add);
 
         const buyChunks = this.root.buyChunksData;
         if (buyChunks && typeof buyChunks.isTileOwned === "function") {
@@ -2314,6 +2315,52 @@ class RegionAnalyzer {
                     add("A chain of miners comes in from outside the area (at " + x + "," + y + ") - include the whole chain");
                 }
             }
+        }
+    }
+
+    // The building a hyperlink part hands its items to (the next link or exit,
+    // or the Hub), or null
+    hyperlinkTarget(entity) {
+        const link = entity.components.HyperlinkEjector;
+        if (!link || link.slots.length === 0) return null;
+        const staticComp = entity.components.StaticMapEntity;
+        const slot = link.slots[0];
+        const dir = staticComp.localDirectionToWorld(slot.direction);
+        const tile = staticComp.localTileToWorld(slot.pos).add(dirVec(dir));
+        const next = this.root.map.getLayerContentXY(tile.x, tile.y, "regular");
+        if (!next) return null;
+        if (next.components.Hub) return next;
+        const acceptor = next.components.HyperlinkAcceptor;
+        const nextStatic = next.components.StaticMapEntity;
+        return acceptor && acceptor.findMatchingSlot(nextStatic.worldToLocalTile(tile), nextStatic.worldDirectionToLocal(dir))
+            ? next
+            : null;
+    }
+
+    // A chain of hyperlinks must be compressed as a whole, and must not end in the Hub
+    checkHyperlinks(rect, entities, add) {
+        for (const entity of entities) {
+            if (!entity.components.HyperlinkEjector) continue;
+            const target = this.hyperlinkTarget(entity);
+            if (target && !entities.has(target)) {
+                const o = entity.components.StaticMapEntity.origin;
+                add("A hyperlink leaves the area (at " + o.x + "," + o.y + ") - include the whole chain");
+            }
+        }
+        // Only the ring of tiles around the area can hand items in
+        const checkTile = (x, y) => {
+            const content = this.root.map.getLayerContentXY(x, y, "regular");
+            if (!content || entities.has(content) || !content.components.HyperlinkEjector) return;
+            const target = this.hyperlinkTarget(content);
+            if (target && entities.has(target)) add("A hyperlink comes in from outside the area (at " + x + "," + y + ") - include the whole chain");
+        };
+        for (let x = rect.x - 1; x <= rect.x + rect.w; ++x) {
+            checkTile(x, rect.y - 1);
+            checkTile(x, rect.y + rect.h);
+        }
+        for (let y = rect.y; y < rect.y + rect.h; ++y) {
+            checkTile(rect.x - 1, y);
+            checkTile(rect.x + rect.w, y);
         }
     }
 
@@ -3006,6 +3053,11 @@ const TRANSIT_STEPS = 1;
 
 const SINGLE_INPUT_PROCESSORS = ["cutter", "cutterQuad", "rotater", "rotaterCCW", "rotater180"];
 const PASS_THROUGH_COMPONENTS = ["Storage", "CustomStorage", "QueueStorage", "StackStorage"];
+// Processor types of two Industries machines that need more than their handler
+const LASER_CUTTER_TYPE = "cutter_laser";
+const QUAD_STACKER_TYPE = "stacker-quad";
+// The Smart Tunnel's reach (Industries keeps it outside the game's own table)
+const SMART_TUNNEL_RANGE = 7;
 
 function formatCount(n) {
     if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M";
@@ -3173,6 +3225,13 @@ function signalTruthy(signal) {
     return !!signal && (signal.b === undefined || signal.b);
 }
 
+// The item a stored signal stands for (the reverse of encodeSignal)
+function decodeSignal(root, signal) {
+    if (!signal) return null;
+    if (signal.b !== undefined) return signal.b ? shapez.BOOL_TRUE_SINGLETON : shapez.BOOL_FALSE_SINGLETON;
+    return signal.k ? keyToItem(root, signal.k) : null;
+}
+
 // Signals of the buildings whose behaviour depends on them
 function captureSignals(entities) {
     const signals = {};
@@ -3181,7 +3240,7 @@ function captureSignals(entities) {
         if (!pins) continue;
         const processor = entity.components.ItemProcessor;
         const relevant = entity.components.Filter || entity.components.HubExtraction ||
-            (processor && processor.type === "painterQuad");
+            (processor && (processor.type === "painterQuad" || processor.type === LASER_CUTTER_TYPE));
         if (!relevant) continue;
         signals[entity.uid] = pins.slots.map(slot =>
             slot.linkedNetwork && slot.linkedNetwork.hasValue() ? encodeSignal(slot.linkedNetwork.currentValue) : null
@@ -3440,7 +3499,7 @@ class FactoryCalculator {
         }
         for (const node of this.nodes) {
             if (node.kind === "tunnelIn") {
-                node.receiver = this.findTunnelReceiver(node.entity);
+                node.receiver = node.hyperlink ? this.findHyperlinkExit(node.entity) : this.findTunnelReceiver(node.entity);
             }
             // A channel hands its shapes over after the buildings stepped
             if (node.kind === "tpOut") node.outputs.forEach(e => this.makeTransit(e));
@@ -3503,6 +3562,23 @@ class FactoryCalculator {
             const origin = c.StaticMapEntity.origin;
             node.resource = itemKey(this.root.map.getLowerLayerContentXY(origin.x, origin.y));
             node.chainIn = new Map();
+            // Deep Extractor (Industries) mines faster by a fixed factor
+            node.speedMul = c.DeepMiner ? c.DeepMiner.speedMultiplier : 1;
+            return node;
+        }
+        // Belt Crossing (Industries): every input slot hands its items to the
+        // output slot with the same number, nothing else
+        if (c.BeltCrossing) {
+            node.kind = "crossing";
+            return node;
+        }
+        // Hyperlink (Industries): the entrance behaves like a tunnel entrance
+        // whose exit is the end of the chain of links; the links themselves hold
+        // nothing worth modelling
+        if (c.Hyperlink) {
+            if (c.Hyperlink.active) return null;
+            node.kind = c.HyperlinkEjector.slots.length > 0 ? "tunnelIn" : "tunnelOut";
+            node.hyperlink = node.kind === "tunnelIn";
             return node;
         }
         if (c.HubExtraction) {
@@ -3598,6 +3674,16 @@ class FactoryCalculator {
             if (handler && inputs.length > 0 && c.ItemProcessor.inputsPerCharge === inputs.length) {
                 node.kind = "machine";
                 node.handler = handler;
+                // Laser Cutter (Industries) reads which corners to cut from its pins
+                if (c.WiredPins && type === LASER_CUTTER_TYPE) node.pinSignals = this.signals[uid] || [];
+                return node;
+            }
+            // Quad Stacker (Industries): the first input plus any of the three
+            // lower ones, whichever have a shape
+            if (handler && type === QUAD_STACKER_TYPE && inputs.length === 4) {
+                node.kind = "machine";
+                node.handler = handler;
+                node.optionalFrom = 1;
                 return node;
             }
             this.problem("\"" + name + "\" (" + type + ") cannot be calculated");
@@ -3720,7 +3806,10 @@ class FactoryCalculator {
         const dir = staticComp.localDirectionToWorld(shapez.enumDirection.top);
         const angle = shapez.enumDirectionToAngle[dir];
         let tile = staticComp.origin;
-        for (let i = 0; i < shapez.globalConfig.undergroundBeltMaxTilesByTier[tunnel.tier]; ++i) {
+        const range = entity.components.SmartUndergroundBelt
+            ? SMART_TUNNEL_RANGE
+            : shapez.globalConfig.undergroundBeltMaxTilesByTier[tunnel.tier];
+        for (let i = 0; i < range; ++i) {
             tile = tile.add(dirVec(dir));
             const other = this.at.get(tile.x + "," + tile.y);
             if (!other || !other.components.UndergroundBelt) continue;
@@ -3728,6 +3817,31 @@ class FactoryCalculator {
             if (o.tier === tunnel.tier && other.components.StaticMapEntity.rotation === angle) {
                 return o.mode === shapez.enumUndergroundBeltMode.receiver ? this.nodeOf.get(other) || null : null;
             }
+        }
+        return null;
+    }
+
+    // The exit a hyperlink entrance leads to: follows the chain of links (each
+    // hands its items to the one its ejector faces); null when it ends elsewhere
+    findHyperlinkExit(entity) {
+        let current = entity;
+        for (let n = 0; n < 5000; ++n) {
+            const link = current.components.HyperlinkEjector;
+            if (!link || link.slots.length === 0) return null;
+            const staticComp = current.components.StaticMapEntity;
+            const slot = link.slots[0];
+            const dir = staticComp.localDirectionToWorld(slot.direction);
+            const tile = staticComp.localTileToWorld(slot.pos).add(dirVec(dir));
+            const next = this.at.get(tile.x + "," + tile.y);
+            const acceptor = next && next.components.HyperlinkAcceptor;
+            if (!acceptor) return null;
+            const nextStatic = next.components.StaticMapEntity;
+            if (!acceptor.findMatchingSlot(nextStatic.worldToLocalTile(tile), nextStatic.worldDirectionToLocal(dir))) return null;
+            if (next.components.Hyperlink.active) {
+                current = next;
+                continue;
+            }
+            return this.nodeOf.get(next) || null;
         }
         return null;
     }
@@ -3752,7 +3866,8 @@ class FactoryCalculator {
         let slots = null; // the input slots it takes from; null: all
         switch (node.kind) {
             case "machine": {
-                slots = this.requiredSlots(node);
+                // A machine with optional inputs asks every input for shapes
+                slots = node.optionalFrom !== undefined ? null : this.requiredSlots(node);
                 if (node.type === "painterQuad" && slots.length === 1) break;
                 amount = node.speed * dt + node.carry;
                 const perSlot = node.perSlot || new Map(node.outputs.map((_, slot) => [slot, 1]));
@@ -3771,8 +3886,19 @@ class FactoryCalculator {
                 if (node.signal) amount = Math.min(this.passLimit(node, dt), this.room(node.outputs[0], dt) + this.room(node.outputs[1], dt));
                 break;
             case "tunnelIn":
-                amount = this.room(node.receiver && node.receiver.outputs[0], dt);
+                // Normally one output; a hyperlink exit has up to three
+                if (node.receiver) {
+                    const outs = node.receiver.outputs;
+                    amount = outs.length === 1 ? this.room(outs[0], dt) : outs.reduce((s, e) => s + this.room(e, dt), 0);
+                }
                 break;
+            case "crossing":
+                // Each input slot only has the output slot with its number behind it
+                node.inputs.forEach((edges, slot) => {
+                    const demand = Math.min(this.passLimit(node, dt), this.room(node.outputs[slot], dt));
+                    for (const edge of edges) edge.demand = demand;
+                });
+                return;
             case "hubSink":
             case "trash":
                 amount = Infinity;
@@ -3922,7 +4048,7 @@ class FactoryCalculator {
     produceWithHandler(node, combo) {
         const items = new Map();
         combo.forEach((key, slot) => items.set(slot, keyToItem(this.root, key)));
-        const payload = { entity: node.entity, items, inputCount: items.size, outItems: [] };
+        const payload = { entity: node.pinSignals ? this.pinShim(node) : node.entity, items, inputCount: items.size, outItems: [] };
         node.handler.call({ root: this.root }, payload);
         return payload.outItems
             .map(o => ({
@@ -3932,7 +4058,29 @@ class FactoryCalculator {
             .filter(o => o.key && isValidKey(o.key));
     }
 
+    // The building as a handler sees it, but with the signals its pins carried
+    // when it was compressed (off the map its pins are on no network)
+    pinShim(node) {
+        if (!node.shim) {
+            const slots = node.pinSignals.map(signal => {
+                const item = decodeSignal(this.root, signal);
+                return { linkedNetwork: item ? { hasValue: () => true, currentValue: item } : null };
+            });
+            node.shim = { components: Object.assign({}, node.entity.components, { WiredPins: { slots } }) };
+        }
+        return node.shim;
+    }
+
     requiredSlots(node) {
+        // Slots from optionalFrom on are used only while they hold a shape; with
+        // none of them filled the machine waits
+        if (node.optionalFrom !== undefined) {
+            const slots = [0];
+            for (let slot = node.optionalFrom; slot < node.inputs.length; ++slot) {
+                if (totalAmount(this.slotContents(node, slot)) > 1e-9) slots.push(slot);
+            }
+            return slots.length > 1 ? slots : [];
+        }
         if (node.handler) return node.inputs.map((_, slot) => slot);
         switch (node.type) {
             case "stacker":
@@ -3950,6 +4098,7 @@ class FactoryCalculator {
 
     stepMachine(node, dt) {
         const slots = this.requiredSlots(node);
+        if (slots.length === 0) return; // optional inputs all empty
         if (node.type === "painterQuad" && slots.length === 1) return; // no quadrant enabled
         const contents = slots.map(slot => this.slotContents(node, slot));
         let charges = Math.min(node.speed * dt + node.carry, ...contents.map(totalAmount));
@@ -4163,17 +4312,38 @@ class FactoryCalculator {
             }
             case "tunnelIn": {
                 const receiver = node.receiver;
-                const edge = receiver && receiver.outputs[0];
-                const amount = Math.min(totalAmount(this.slotContents(node, 0)), this.room(edge, dt));
+                if (!receiver) return;
+                if (node.inputs.length === 1 && receiver.outputs.length === 1) {
+                    // A plain tunnel: one way in, one way out
+                    const edge = receiver.outputs[0];
+                    const amount = Math.min(totalAmount(this.slotContents(node, 0)), this.room(edge, dt));
+                    if (amount <= 0) return;
+                    for (const [k, v] of this.takeFromSlot(node, 0, amount)) this.push(edge, k, v);
+                    return;
+                }
+                // Everything entering (a hyperlink entrance has three inputs) goes
+                // out at the other end, shared over its outputs
+                const outputs = receiver.outputs.filter(Boolean);
+                const available = node.inputs.reduce((s, _, slot) => s + totalAmount(this.slotContents(node, slot)), 0);
+                const room = outputs.reduce((s, e) => s + this.room(e, dt), 0);
+                const amount = Math.min(available, room);
                 if (amount <= 0) return;
-                for (const [k, v] of this.takeFromSlot(node, 0, amount)) this.push(edge, k, v);
+                this.spread(this.takeFromAllInputs(node, amount), outputs, dt);
                 return;
             }
+            case "crossing":
+                node.inputs.forEach((_, slot) => {
+                    const edge = node.outputs[slot];
+                    const amount = Math.min(totalAmount(this.slotContents(node, slot)), this.passLimit(node, dt), this.room(edge, dt));
+                    if (amount <= 0) return;
+                    for (const [k, v] of this.takeFromSlot(node, slot, amount)) this.push(edge, k, v);
+                });
+                return;
             case "miner": {
                 // A chain of miners passes everything on to the last one, which
                 // ejects it; what does not fit waits (a little), a blocked miner
                 // just stops mining
-                const own = node.resource ? this.root.hubGoals.getMinerBaseSpeed() * dt : 0;
+                const own = node.resource ? this.root.hubGoals.getMinerBaseSpeed() * node.speedMul * dt : 0;
                 const chain = node.chainIn;
                 node.chainIn = new Map();
                 if (node.chainTo) {

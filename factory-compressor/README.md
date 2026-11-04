@@ -29,6 +29,7 @@ A big factory with thousands of belts and machines makes the game slow, even whe
 - A model where nothing moves goes to sleep until something arrives or leaves, so it costs almost nothing.
 - Areas with a building the model does not know are measured for 60 seconds instead, and run a fixed recipe.
 - Machines from other mods that register a normal item processor (for example Shapez Expanded) and balancer variants (for example Balancer Variants) work too.
+- **Full support for the Industries mod:** Belt Crossing, Hyperlink chains, Deep Extractor, Laser Cutter, Quad Stacker, Smart Tunnel, Smart Balancer, Shape Combiner and Shape Compressor are all modeled like the game's own buildings. Keep a whole Hyperlink chain inside one area.
 
 ## What is never compressed
 
