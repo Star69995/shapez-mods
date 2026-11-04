@@ -3,7 +3,7 @@ const METADATA = {
     website: "https://github.com/Star69995/shapez-mods/tree/main/factory-compressor",
     author: "Star",
     name: "Factory Compressor",
-    version: "0.8.20",
+    version: "0.9.4",
     id: "factory-compressor",
     description:
         "Select a factory and press K to compress it into one building that runs a light model of it, so the game no longer simulates every belt and machine in it. The box takes the shapes that really arrive (belts, teleporters, Hub) and puts out what the factory would, at the current upgrade speeds. Inputs and outputs that depend on the outside - Hub Extractors, teleporters and Micro Hubs - are never compressed; they stay real buildings at the edge of the box. It shows its name, what it takes and puts out, and whether it runs at full capacity or needs more of a shape. Click it to name it or unpack the original factory (or select several with Ctrl + drag and unpack them all at once); copy and paste it like a building. Compressing costs blueprint shapes, like pasting a blueprint.",
@@ -39,7 +39,8 @@ const FULL_CAPACITY_USE = 0.95;
 const TELEPORTER_ITEMS_PER_LANE = 20;
 
 // Component id -> readable name. A region containing any of these is refused,
-// because they compute signals (only static wiring may be compressed).
+// because they compute signals (only static wiring may be compressed). The one
+// exception: a LogicGate whose inputs can never change (see gateIsStatic).
 const BLOCKING_COMPONENTS = {
     LogicGate: "logic gate / virtual processor",
     BeltReader: "belt reader",
@@ -303,6 +304,15 @@ function shapePicture(root, key, size) {
     return html;
 }
 
+// A piece of the dialog that the Shape Key Reader mod turns into a copy button
+// (data-shape-key: it styles it, handles the click and shows "copied"). Without
+// that mod it is just a plain label.
+function copyableHtml(key, inner, extraStyle) {
+    const k = escapeHtml(key);
+    return '<span data-shape-key="' + k + '" title="Click to copy ' + k +
+        '" style="display:inline-block;white-space:nowrap;margin:0 10px 4px 0;' + (extraStyle || "") + '">' + inner + "</span>";
+}
+
 // Shapes with a number each, side by side: [{ key, perSecond | text }]
 function chipsHtml(root, entries, { redWhenZero = false } = {}) {
     if (!entries || entries.length === 0) return '<span style="opacity:0.5;">-</span>';
@@ -310,8 +320,7 @@ function chipsHtml(root, entries, { redWhenZero = false } = {}) {
     const chips = shown.map(e => {
         const text = e.text !== undefined ? e.text : formatPerSecond(e.perSecond) + "/s";
         const red = redWhenZero && e.text === undefined && e.perSecond < 0.05;
-        return '<span style="display:inline-block;white-space:nowrap;margin:0 12px 4px 0;' +
-            (red ? "color:#d33;" : "") + '">' + shapePicture(root, e.key, 26) + " " + escapeHtml(text) + "</span>";
+        return copyableHtml(e.key, shapePicture(root, e.key, 26) + " " + escapeHtml(text), red ? "color:#d33;" : "");
     });
     if (entries.length > shown.length) chips.push('<span style="opacity:0.6;">+' + (entries.length - shown.length) + " more</span>");
     return chips.join("");
@@ -2138,11 +2147,19 @@ class RegionAnalyzer {
             if (!problems.includes(text)) problems.push(text);
         };
 
+        const gateState = new Map();
         for (const entity of entities) {
             const staticComp = entity.components.StaticMapEntity;
             const where = " at " + staticComp.origin.x + "," + staticComp.origin.y;
             for (const id in BLOCKING_COMPONENTS) {
-                if (entity.components[id]) add("Contains " + BLOCKING_COMPONENTS[id] + where);
+                if (!entity.components[id]) continue;
+                if (id === "LogicGate") {
+                    if (!this.gateIsStatic(entity, gateState)) {
+                        add("Contains " + BLOCKING_COMPONENTS[id] + where + " that changes over time (fed by a lever, storage, belt reader, or a loop)");
+                    }
+                    continue;
+                }
+                add("Contains " + BLOCKING_COMPONENTS[id] + where);
             }
             if (!entity.components.Hub && !entity.components.FactoryBox && !this.root.logic.canDeleteBuilding(entity)) {
                 add("Contains a building that cannot be removed" + where);
@@ -2166,6 +2183,34 @@ class RegionAnalyzer {
             if (unowned) add("The area includes chunks you have not bought");
         }
         return problems;
+    }
+
+    // A logic gate / virtual processor may be compressed when its output can never
+    // change: every signal feeding it comes from a constant signal or from another
+    // such gate, and there is no loop (a loop can hold state). Its output is then
+    // exactly what the box stores for the buildings it drives. `state` caches the
+    // answer per gate (1: being checked, 2: static, 3: not static).
+    gateIsStatic(gate, state) {
+        const known = state.get(gate);
+        if (known !== undefined) return known === 2;
+        state.set(gate, 1);
+        const pinType = shapez.enumPinSlotType;
+        let ok = true;
+        for (const slot of gate.components.WiredPins.slots) {
+            if (!ok) break;
+            if (slot.type !== pinType.logicalAcceptor || !slot.linkedNetwork) continue;
+            for (const source of slot.linkedNetwork.allSlots) {
+                if (source.type !== pinType.logicalEjector) continue;
+                const c = source.entity.components;
+                if (c.ConstantSignal) continue;
+                if (!c.LogicGate || !this.gateIsStatic(source.entity, state)) {
+                    ok = false;
+                    break;
+                }
+            }
+        }
+        state.set(gate, ok ? 2 : 3);
+        return ok;
     }
 
     // Wire-layer buildings that stay on the map instead of being compressed.
@@ -3592,6 +3637,13 @@ class FactoryCalculator {
                 node.kind = "hubSource";
                 node.portKey = this.hubPortOf.get(uid);
                 node.counted = { target: c.HubExtraction.targetCount, orFewer: c.HubExtraction.orFewer, key: null, left: 0, queue: [] };
+                return node;
+            }
+            if (c.HubExtraction.fixed) {
+                // Shape variant: always the shape typed into it, no wires
+                node.kind = "hubSource";
+                node.key = c.HubExtraction.shapeKey || null;
+                node.portKey = this.hubPortOf.get(uid);
                 return node;
             }
             if (c.StaticMapEntity.getVariant() !== shapez.defaultBuildingVariant) {
@@ -5317,10 +5369,14 @@ class HUDFactoryCompressor extends shapez.BaseHUDPart {
                 (cost.minutesAgo > 0 ? ", measured " + cost.minutesAgo + " min ago" : ", just measured") + ").</span></div>";
         }
         const desc =
-            '<div style="font-size:0.82em;line-height:1.4;">' +
+            // The game sets pointer-events: none on every element, which also blocks selecting text
+            '<style>.fcDesc,.fcDesc *{pointer-events:all;}</style>' +
+            '<div class="fcDesc" style="font-size:0.82em;line-height:1.4;user-select:text;-webkit-user-select:text;">' +
             '<div style="margin-bottom:4px;"><span style="display:inline-block;width:0.7em;height:0.7em;border-radius:50%;' +
-            "background:" + status.color + ';border:1px solid rgba(0,0,0,0.35);margin-right:8px;"></span><b>' + escapeHtml(status.text) + "</b></div>" +
+            "background:" + status.color + ';border:1px solid rgba(0,0,0,0.35);margin-right:8px;"></span><b>' + escapeHtml(status.text) + "</b>" +
+            (status.key ? " " + copyableHtml(status.key, shapePicture(root, status.key, 22) + " " + escapeHtml(status.key)) : "") + "</div>" +
             (explanation ? '<div style="opacity:0.75;margin-bottom:10px;">' + escapeHtml(explanation) + "</div>" : '<div style="margin-bottom:10px;"></div>') +
+            (window.shapeKeyReaderLoaded ? '<div style="opacity:0.55;margin-bottom:4px;">Click any framed shape (⧉) to copy its code</div>' : "") +
             '<table style="border-collapse:collapse;width:100%;"><tr><th></th>' + th("Right now", 0.7) + (cap ? th("At full speed", 0.7) : "") + "</tr>" +
             rows + "</table>" + (live ? this.becomingCalculatedHtml(comp, st) : "") + costHtml +
             (st.ports.some(p => p.toHub) ? '<div style="opacity:0.65;margin-top:6px;">Its output goes over belts into a Micro Hub (or the Hub).</div>' : "") +

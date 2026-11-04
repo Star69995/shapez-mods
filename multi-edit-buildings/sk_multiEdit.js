@@ -3,10 +3,10 @@ const METADATA = {
     website: "https://github.com/Star69995/shapez-mods/tree/main/multi-edit-buildings",
     author: "Star",
     name: "Multi-Edit Buildings",
-    version: "1.2.1",
+    version: "1.3.0",
     id: "sk-multi-edit",
     description:
-        "Select buildings with the normal mass-selector (Ctrl+drag), then edit their values by building type all at once. Seq Fill for Signal Generators only uses shapes/colors registered in the game and lets you pick shapes, colors, quadrant pattern, order, start, repeat or a custom list.",
+        "Select buildings with the normal mass-selector (Ctrl+drag), then edit their values by building type all at once. Also edits Hub Extractors and Vault Extractors (Count / Shape / Overflow variants). Seq Fill for Signal Generators only uses shapes/colors registered in the game and lets you pick shapes, colors, quadrant pattern, order, start, repeat or a custom list.",
     minimumGameVersion: ">=1.5.0",
 };
 
@@ -95,6 +95,9 @@ function buildSignalSequence({ shapes, colors, pattern, colorsFirst }) {
 //
 // Fields:
 //   componentId   – key in entity.components  (e.g. "CustomStorage")
+//   key           – (optional) unique id of the entry; defaults to componentId. Needed when
+//                   one component has several variants that are edited differently.
+//   match         – (optional) function(component) => boolean, picks the variant of the component
 //   buildingLabel – human-readable name in the panel
 //   dialogTitle   – function(count) => string
 //   dialogDesc    – string below the dialog title
@@ -319,7 +322,137 @@ const MULTI_EDIT_TYPES = [
             comp.signal = newSignal;
         },
     },
+
+    // ── Hub Extractor – Count (HubExtractor mod) ─────────────────────────────
+    {
+        componentId:  "HubExtraction",
+        key:          "HubExtraction_count",
+        match:        comp => comp.singles,
+        buildingLabel: "Hub Extractor (Count)",
+        dialogTitle: count =>
+            `Edit Hub Extractors (Count)  (${count} building${count !== 1 ? "s" : ""})`,
+        dialogDesc:
+            "Leave a field blank to keep each extractor's current value.",
+        formElements: () => [
+            new shapez.FormElementInput({
+                id:           "sk_me_hubc_amount",
+                label:        "Amount (N)",
+                placeholder:  "1, 2, 3 ...  (blank = keep current)",
+                defaultValue: "",
+                validator:    val => val.trim() === "" || (/^\d+$/.test(val.trim()) && parseInt(val) >= 1),
+            }),
+            new shapez.FormElementInput({
+                id:           "sk_me_hubc_fewer",
+                label:        "Also shapes with fewer than N",
+                placeholder:  "yes / no  (blank = keep current)",
+                defaultValue: "",
+                validator:    val => /^(|y|yes|n|no)$/i.test(val.trim()),
+            }),
+        ],
+        applyValues(entity, formEls) {
+            const comp = entity.components.HubExtraction;
+            if (!comp) return;
+            const amount = formEls[0].getValue().trim();
+            const fewer  = formEls[1].getValue().trim().toLowerCase();
+            if (amount !== "") comp.targetCount = parseInt(amount);
+            if (fewer  !== "") comp.orFewer     = fewer[0] === "y";
+            comp.resetScan();
+        },
+    },
+
+    // ── Hub Extractor – Shape (HubExtractor mod) ─────────────────────────────
+    {
+        componentId:  "HubExtraction",
+        key:          "HubExtraction_fixed",
+        match:        comp => comp.fixed,
+        buildingLabel: "Hub Extractor (Shape)",
+        dialogTitle: count =>
+            `Edit Hub Extractors (Shape)  (${count} building${count !== 1 ? "s" : ""})`,
+        dialogDesc:
+            "Sets the shape every selected extractor ejects.",
+        formElements: () => [
+            new shapez.FormElementInput({
+                id:           "sk_me_hubs_shape",
+                label:        "Shape code:",
+                placeholder:  "CuCuCuCu",
+                defaultValue: "",
+                validator:    val => shapez.ShapeDefinition.isValidShortKey(val.trim()),
+            }),
+        ],
+        applyValues(entity, formEls) {
+            const comp = entity.components.HubExtraction;
+            if (!comp) return;
+            comp.setKey(formEls[0].getValue().trim());
+        },
+    },
+
+    // ── Vault Extractor – Overflow (shape_vault.js) ──────────────────────────
+    {
+        componentId:  "VaultExtraction",
+        key:          "VaultExtraction_overflow",
+        match:        comp => comp.overflow,
+        buildingLabel: "Vault Overflow Extractor",
+        dialogTitle: count =>
+            `Edit Vault Overflow Extractors  (${count} building${count !== 1 ? "s" : ""})`,
+        dialogDesc:
+            "Sets how much of each shape stays in the Vault; everything above it is ejected.",
+        formElements: () => [
+            new shapez.FormElementInput({
+                id:           "sk_me_vaulto_keep",
+                label:        "Amount to keep",
+                placeholder:  "100, 1000 ...",
+                defaultValue: "",
+                validator:    val => /^\d+$/.test(val.trim()) && parseInt(val, 10) <= 2000000000,
+            }),
+        ],
+        applyValues(entity, formEls) {
+            const comp = entity.components.VaultExtraction;
+            if (!comp) return;
+            comp.keep = parseInt(formEls[0].getValue().trim(), 10);
+            comp.resetScan();
+        },
+    },
+
+    // ── Vault Extractor – Shape (shape_vault.js) ─────────────────────────────
+    {
+        componentId:  "VaultExtraction",
+        key:          "VaultExtraction_fixed",
+        match:        comp => comp.fixed,
+        buildingLabel: "Vault Shape Extractor",
+        dialogTitle: count =>
+            `Edit Vault Shape Extractors  (${count} building${count !== 1 ? "s" : ""})`,
+        dialogDesc:
+            "Sets the shape (or color code) every selected extractor ejects from the Vault.",
+        formElements: () => [
+            new shapez.FormElementInput({
+                id:           "sk_me_vaults_shape",
+                label:        "Shape code:",
+                placeholder:  "CuCuCuCu",
+                defaultValue: "",
+                validator:    val => !!_vaultKey(val),
+            }),
+        ],
+        applyValues(entity, formEls) {
+            const comp = entity.components.VaultExtraction;
+            if (!comp) return;
+            comp.setKey(_vaultKey(formEls[0].getValue()));
+            comp.resetScan();
+        },
+    },
 ];
+
+/**
+ * Same key rules as the Vault mod: a shape code, or a color (full name or its one-letter code,
+ * which is stored as the full name). Returns "" if the text is not valid.
+ */
+function _vaultKey(text) {
+    const key = text.trim();
+    const color = (key.length === 1 && shapez.enumShortcodeToColor[key]) || key;
+    if (shapez.COLOR_ITEM_SINGLETONS.hasOwnProperty(color)) return color;
+    return shapez.ShapeDefinition.isValidShortKey(key) ? key : "";
+}
+
+const _typeKey = typeDef => typeDef.key || typeDef.componentId;
 
 // ─── Helper: read selected UIDs from whatever mass-selector is active ─────────
 // Supports both the vanilla HUDMassSelector (selectedUids Set)
@@ -413,18 +546,20 @@ class HUDSkMultiEdit extends shapez.BaseHUDPart {
         }
 
         // Group uids by the first matching editable component type
-        const typeGroups = new Map(); // componentId → uid[]
+        const typeGroups = new Map(); // type key → uid[]
 
         for (const uid of uids) {
             const entity = this.root.entityMgr.findByUid(uid, false);
             if (!entity || entity.destroyed) continue;
 
             for (const typeDef of MULTI_EDIT_TYPES) {
-                if (entity.components[typeDef.componentId]) {
-                    if (!typeGroups.has(typeDef.componentId)) {
-                        typeGroups.set(typeDef.componentId, []);
+                const comp = entity.components[typeDef.componentId];
+                if (comp && (!typeDef.match || typeDef.match(comp))) {
+                    const key = _typeKey(typeDef);
+                    if (!typeGroups.has(key)) {
+                        typeGroups.set(key, []);
                     }
-                    typeGroups.get(typeDef.componentId).push(uid);
+                    typeGroups.get(key).push(uid);
                     break;
                 }
             }
@@ -456,7 +591,7 @@ class HUDSkMultiEdit extends shapez.BaseHUDPart {
 
         html += `<table style="width:100%;border-collapse:collapse;">`;
         for (const [componentId, groupUids] of typeGroups) {
-            const typeDef = MULTI_EDIT_TYPES.find(t => t.componentId === componentId);
+            const typeDef = MULTI_EDIT_TYPES.find(t => _typeKey(t) === componentId);
             const seqBtn  = componentId === "ConstantSignal"
                 ? `<button data-seq="${componentId}" style="${BTN_SEQ}">Seq Fill</button>`
                 : "";
@@ -537,13 +672,13 @@ class HUDSkMultiEdit extends shapez.BaseHUDPart {
      * @param {number[]} uids
      */
     _showEditDialog(componentId, uids) {
-        const typeDef = MULTI_EDIT_TYPES.find(t => t.componentId === componentId);
+        const typeDef = MULTI_EDIT_TYPES.find(t => _typeKey(t) === componentId);
         if (!typeDef) return;
 
         // Re-resolve (entities might be destroyed since the panel was built)
         const entities = uids
             .map(uid => this.root.entityMgr.findByUid(uid, false))
-            .filter(e => e && !e.destroyed && e.components[componentId]);
+            .filter(e => e && !e.destroyed && e.components[typeDef.componentId]);
 
         if (entities.length === 0) return;
 

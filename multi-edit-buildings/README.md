@@ -47,6 +47,8 @@ Your last Seq Fill settings are remembered.
 | Transceiver | Channel (overwrite or Find & Replace) | [Pnmod Transceiver](https://mod.io/g/shapez/m/pnmod-transceiver) |
 | Custom Storage | Storage limit (1-99999 or ∞) | [Custom Storage v2](https://github.com/Star69995/Shapez.io-Mods) |
 | Note Building | Text and font size | [In-Game Notes](https://github.com/derekShaheen/Shapez.io-Mods) |
+| Hub Extractor (Count / Shape) | Count: amount and "also fewer than N"; Shape: the shape code | [Hub Extractor](https://github.com/Star69995/shapez-hub-extractor) |
+| Vault Overflow / Shape Extractor | Overflow: amount to keep; Shape: the shape code | [Shape Vault](https://mod.io/g/shapez/m/shape-vault) |
 
 Types from other mods only show up when that mod is installed.
 

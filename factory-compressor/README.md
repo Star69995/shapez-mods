@@ -15,6 +15,7 @@ A big factory with thousands of belts and machines makes the game slow, even whe
 - Select the factory with **Ctrl+drag**, then press **K** (or the button in the panel at the bottom).
 - The factory becomes a **Compressed factory** box. Click it to give it a name, see its recipe, or **unpack** the original factory (select several boxes with Ctrl+drag to unpack them all at once). Unpacking is free.
 - Copy and paste a box like any building.
+- With the [Shape Key Reader](https://github.com/Star69995/shapez-key-reader) mod installed, click any framed shape in the box's window to copy its code.
 
 ## What the box shows
 
@@ -33,7 +34,7 @@ A big factory with thousands of belts and machines makes the game slow, even whe
 
 ## What is never compressed
 
-Anything that depends on the outside stays a real building at the edge of the box: **Hub Extractors, teleporters and Micro Hubs**. Put them at the factory's edge, not inside it. The mod refuses areas with logic gates, belt readers, wire networks or tunnels that leave the area, and unbought chunks.
+Anything that depends on the outside stays a real building at the edge of the box: **Hub Extractors, teleporters and Micro Hubs**. Put them at the factory's edge, not inside it. Logic gates are fine as long as their output can never change (fed only by constant signals or other such gates, no loops). The mod refuses areas with gates fed by levers, storage, belt readers or loops, other belt readers, wire networks or tunnels that leave the area, and unbought chunks.
 
 ## Cost
 
@@ -43,6 +44,7 @@ Compressing costs blueprint shapes, like pasting the area. Deleting a box refund
 
 - shapez 1.5.0 or newer.
 - [Compact Saves](../compact-saves/) (optional): makes saving and loading with many boxes much faster. Factory Compressor can read those saves by itself.
+- **Shape Key Reader** (optional): adds the click-to-copy button on shapes in the box's window.
 - **Building Costs** (optional): a box then costs what the buildings inside would cost.
 
 ## Installation
