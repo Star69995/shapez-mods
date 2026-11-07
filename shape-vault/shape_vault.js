@@ -3,10 +3,10 @@ const METADATA = {
     website: "https://github.com/Star69995/shapez-mods/tree/main/shape-vault",
     author: "Star",
     name: "Shape Vault",
-    version: "1.4.2",
+    version: "1.5.0",
     id: "shape-vault",
     description:
-        "A second storage next to the Hub: the Vault takes shapes from belts and keeps them apart from the Hub (and its goals). Comes with its own Vault Extractors (by wire signal, by a typed shape code, or everything above an amount), a Vault Level Sensor that puts the stock on the wires layer, and a small indicator that tells you if what you take out of the Vault keeps arriving. Costs almost nothing per tick and adds a few lines to the save.",
+        "A second storage next to the Hub: the Vault takes shapes from belts and keeps them apart from the Hub (and its goals). Comes with its own Vault Extractors (by wire signal, by a typed shape code, everything above an amount, or everything below an amount), a Vault Level Sensor that puts the stock on the wires layer, and a small indicator that tells you if what you take out of the Vault keeps arriving. Costs almost nothing per tick and adds a few lines to the save.",
     minimumGameVersion: ">=1.5.0",
     doesNotAffectSavegame: false,
 };
@@ -33,6 +33,7 @@ const COLORS = { ok: "#7ee08a", warn: "#ffd84a", bad: "#ff7070", idle: "#9aa8bc"
 
 const VARIANT_SINGLE = "single"; // Vault, 1x1
 const VARIANT_OVERFLOW = "overflow"; // Vault Extractor that releases everything above an amount
+const VARIANT_UNDERFLOW = "underflow"; // Vault Extractor that releases every shape the Vault holds less than an amount of
 const VARIANT_FIXED = "fixed"; // Vault Extractor that releases one shape, typed in as text
 
 ////////////////////////////////////////////////////////////////////////
@@ -66,6 +67,9 @@ const STRINGS = {
         fixedDesc: "Ejects, one by one, the shape or color whose code you type, for as long as the Vault holds it. Needs no wires.<br>You can copy a code by clicking it in the Vault statistics window.",
         keepLabel: "Amount to keep in the Vault, per shape:",
         sensorLabel: "Amount in the Vault:",
+        belowLabel: "Eject shapes the Vault holds less than this amount of:",
+        belowTitle: "Vault Low-Stock Extractor",
+        belowDesc: "Ejects, one by one, every shape the Vault holds fewer of than the amount you set, until that shape is gone from the Vault. Needs no wires.",
         extractorTitle: "Vault Overflow Extractor",
         extractorDesc: "Ejects extra shapes from the Vault, one by one, until only the amount you set is left of each shape. Needs no wires.",
         sensorTitle: "Vault Level Sensor",
@@ -99,6 +103,9 @@ const STRINGS = {
         fixedDesc: "מוציא מהכספת, אחת אחת, את הצורה או הצבע שתכתוב כאן, כל עוד יש ממנו בכספת. לא צריך חוטים.<br>את הקוד אפשר להעתיק בלחיצה עליו בחלון הסטטיסטיקה של הכספת.",
         keepLabel: "כמות להשאיר בכספת מכל צורה:",
         sensorLabel: "כמות בכספת:",
+        belowLabel: "להוציא צורות שבכספת יש מהן פחות מכמות זו:",
+        belowTitle: "מוציא מלאי נמוך מהכספת",
+        belowDesc: "מוציא מהכספת, אחת אחת, כל צורה שיש ממנה בכספת פחות מהכמות שהגדרת, עד שהצורה נגמרת בכספת. לא צריך חוטים.",
         extractorTitle: "מוציא עודף מהכספת",
         extractorDesc: "מוציא מהכספת צורות עודפות, אחת אחת, עד שנשארת בכספת רק הכמות שהגדרת מכל צורה. לא צריך חוטים.",
         sensorTitle: "חיישן מלאי כספת",
@@ -382,8 +389,9 @@ class VaultExtractionComponent extends shapez.Component {
 
     constructor() {
         super();
-        this.overflow = false; // false: by wire signal; true: everything above "keep"
+        this.overflow = false; // false: by wire signal; true: by amount, everything above "keep" (or below it, see "below")
         this.keep = DEFAULT_AMOUNT;
+        this.below = false; // with "overflow": everything the Vault holds less than "keep" of. Like "fixed", set from the building code
         // The "typed shape" variant. Not part of the entity's schema (that would break saves that
         // already have extractors): the variant comes from the building code, the shape is saved
         // with the Vault's data
@@ -413,6 +421,7 @@ class VaultExtractionComponent extends shapez.Component {
     copyAdditionalStateTo(other) {
         other.overflow = this.overflow;
         other.keep = this.keep;
+        other.below = this.below;
         other.fixed = this.fixed;
         other.setKey(this.shapeKey);
     }
@@ -551,6 +560,15 @@ class MetaVaultExtractorBuilding extends shapez.ModMetaBuilding {
                 tutorialImageBase64: RESOURCES.extractor.tutorial,
             },
             {
+                name: "Low-Stock Extractor",
+                description:
+                    "Ejects every shape the Vault holds less than the amount you set of, until it is gone. Click it to set the amount. No wires needed.",
+                variant: VARIANT_UNDERFLOW,
+                regularImageBase64: RESOURCES.extractor.base,
+                blueprintImageBase64: RESOURCES.extractor.blueprint,
+                tutorialImageBase64: RESOURCES.extractor.tutorial,
+            },
+            {
                 name: "Shape Extractor",
                 description: "Ejects the shape whose code you type, for as long as the Vault holds it. Click it to set the shape. No wires needed.",
                 variant: VARIANT_FIXED,
@@ -566,14 +584,16 @@ class MetaVaultExtractorBuilding extends shapez.ModMetaBuilding {
     }
 
     getAvailableVariants() {
-        return [shapez.defaultBuildingVariant, VARIANT_OVERFLOW, VARIANT_FIXED];
+        return [shapez.defaultBuildingVariant, VARIANT_OVERFLOW, VARIANT_UNDERFLOW, VARIANT_FIXED];
     }
 
     updateVariants(entity, rotationVariant, variant) {
-        const overflow = variant === VARIANT_OVERFLOW;
+        const below = variant === VARIANT_UNDERFLOW;
+        const overflow = variant === VARIANT_OVERFLOW || below;
         entity.components.VaultExtraction.overflow = overflow;
+        entity.components.VaultExtraction.below = below;
         entity.components.VaultExtraction.fixed = variant === VARIANT_FIXED;
-        // The Overflow and Shape variants need no wires, so they have no pin
+        // The amount and Shape variants need no wires, so they have no pin
         entity.components.WiredPins.setSlots(
             overflow || variant === VARIANT_FIXED
                 ? []
@@ -728,7 +748,12 @@ class VaultExtractorSystem extends shapez.GameSystemWithFilter {
         super(root, [VaultExtractionComponent]);
     }
 
-    // Looks at a limited number of stored shapes per tick and queues the ones above the amount to keep
+    // Whether an amount-based extractor should eject a shape the Vault holds this many of
+    static wants(comp, count) {
+        return comp.below ? count > 0 && count < comp.keep : count > comp.keep;
+    }
+
+    // Looks at a limited number of stored shapes per tick and queues the ones the extractor wants out
     scan(comp, store) {
         if (!comp.scanKeys || comp.scanCursor >= comp.scanKeys.length) {
             // Nothing was added or taken since the last round started: it would find the same
@@ -740,7 +765,7 @@ class VaultExtractorSystem extends shapez.GameSystemWithFilter {
         const end = Math.min(comp.scanCursor + SCAN_BUDGET, comp.scanKeys.length);
         for (; comp.scanCursor < end; ++comp.scanCursor) {
             const key = comp.scanKeys[comp.scanCursor];
-            if (store.count(key) > comp.keep && !comp.queued.has(key)) {
+            if (VaultExtractorSystem.wants(comp, store.count(key)) && !comp.queued.has(key)) {
                 comp.queued.add(key);
                 comp.queue.push(key);
             }
@@ -757,7 +782,7 @@ class VaultExtractorSystem extends shapez.GameSystemWithFilter {
                     comp.queue.length = 0;
                     comp.queueHead = 0;
                 }
-                if (store.count(key) > comp.keep) {
+                if (VaultExtractorSystem.wants(comp, store.count(key))) {
                     comp.drainKey = key;
                     break;
                 }
@@ -765,7 +790,7 @@ class VaultExtractorSystem extends shapez.GameSystemWithFilter {
             if (!comp.drainKey) return;
         }
         const key = comp.drainKey;
-        if (store.count(key) <= comp.keep) {
+        if (!VaultExtractorSystem.wants(comp, store.count(key))) {
             comp.drainKey = null;
             return;
         }
@@ -827,7 +852,7 @@ class VaultExtractorSystem extends shapez.GameSystemWithFilter {
             let color = "#333";
             let item = null; // the typed shape, drawn on the building
             if (comp.overflow) {
-                text = ">" + shapez.formatBigNumber(comp.keep);
+                text = (comp.below ? "<" : ">") + shapez.formatBigNumber(comp.keep);
             } else if (comp.fixed) {
                 if (comp.shapeKey) {
                     if (!comp.item) comp.item = itemFromKey(this.root, comp.shapeKey);
@@ -1005,15 +1030,15 @@ class HUDVaultAmountEdit extends shapez.BaseHUDPart {
         const comp = isSensor ? entity.components.VaultSensor : entity.components.VaultExtraction;
         const input = new shapez.FormElementInput({
             id: "vaultAmount",
-            label: isSensor ? S.sensorLabel : S.keepLabel,
+            label: isSensor ? S.sensorLabel : comp.below ? S.belowLabel : S.keepLabel,
             placeholder: "100, 1000 ...",
             defaultValue: String(isSensor ? comp.threshold : comp.keep),
             validator: val => /^\d+$/.test(val.trim()) && parseInt(val, 10) <= MAX_AMOUNT,
         });
         const dialog = new shapez.DialogWithForm({
             app: this.root.app,
-            title: isSensor ? S.sensorTitle : S.extractorTitle,
-            desc: isSensor ? S.sensorDesc : S.extractorDesc,
+            title: isSensor ? S.sensorTitle : comp.below ? S.belowTitle : S.extractorTitle,
+            desc: isSensor ? S.sensorDesc : comp.below ? S.belowDesc : S.extractorDesc,
             formElements: [input],
             buttons: ["cancel:bad:escape", "ok:good:enter"],
             closeButton: false,
@@ -1716,7 +1741,9 @@ class Mod extends shapez.Mod {
                     const comp = entity.components.VaultExtraction;
                     try {
                         const code = entity.components.StaticMapEntity.code;
-                        if (shapez.getBuildingDataFromCode(code).variant === VARIANT_FIXED) comp.fixed = true;
+                        const variant = shapez.getBuildingDataFromCode(code).variant;
+                        if (variant === VARIANT_FIXED) comp.fixed = true;
+                        else if (variant === VARIANT_UNDERFLOW) comp.below = true;
                     } catch (_) {}
                     if (comp.fixed && pendingFixedShapes && pendingFixedShapes[entity.uid]) comp.setKey(pendingFixedShapes[entity.uid]);
                 }

@@ -3,7 +3,7 @@ const METADATA = {
     website: "https://github.com/Star69995/shapez-mods/tree/main/factory-compressor",
     author: "Star",
     name: "Factory Compressor",
-    version: "0.9.4",
+    version: "0.9.5",
     id: "factory-compressor",
     description:
         "Select a factory and press K to compress it into one building that runs a light model of it, so the game no longer simulates every belt and machine in it. The box takes the shapes that really arrive (belts, teleporters, Hub) and puts out what the factory would, at the current upgrade speeds. Inputs and outputs that depend on the outside - Hub Extractors, teleporters and Micro Hubs - are never compressed; they stay real buildings at the edge of the box. It shows its name, what it takes and puts out, and whether it runs at full capacity or needs more of a shape. Click it to name it or unpack the original factory (or select several with Ctrl + drag and unpack them all at once); copy and paste it like a building. Compressing costs blueprint shapes, like pasting a blueprint.",
@@ -448,10 +448,13 @@ class FactoryBoxComponent extends shapez.Component {
         return super.serialize();
     }
 
-    // Copying (blueprints): the whole factory comes along; running state does not
+    // Copying (blueprints): the whole factory comes along; running state and the
+    // shapes its buildings held do not
     copyAdditionalStateTo(other) {
         if (!this.state) return;
         const st = JSON.parse(JSON.stringify(this.state));
+        const ref = this.entityRef || other.entityRef;
+        if (ref && ref.root) st.blob = blobWithoutContents(ref.root, st.blob);
         st.buf = {};
         st.lines = null;
         st.stock = null;
@@ -3393,6 +3396,31 @@ function contentsCost(st) {
         }
     }
     return costs;
+}
+
+// The buildings of a blob without the shapes they held when the factory was
+// compressed (storages, ejector slots, tunnels...): copied the way the game
+// copies a building, so a pasted box starts empty like pasted buildings do.
+// Keeps the blob as it is if a building cannot be restored.
+const emptiedBlobs = new Map();
+function blobWithoutContents(root, blob) {
+    const known = emptiedBlobs.get(blob);
+    if (known !== undefined) return known;
+    let result = blob;
+    try {
+        const entities = deserializeEntities(root, JSON.parse(blob));
+        result = JSON.stringify(entities.map(({ entity, uid }) => {
+            const data = entity.clone().serialize();
+            data.uid = uid;
+            return data;
+        }));
+    } catch (e) {
+        console.warn("Factory Compressor: could not empty a copied factory", e);
+    }
+    if (emptiedBlobs.size > 50) emptiedBlobs.clear();
+    emptiedBlobs.set(blob, result);
+    emptiedBlobs.set(result, result);
+    return result;
 }
 
 // Creates buildings from serialized data without placing them.

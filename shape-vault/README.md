@@ -16,6 +16,7 @@ Everything you send to the Hub is both your stock *and* what the goals and upgra
 | Vault Extractor | Send it a shape on the wires layer and it ejects that shape. |
 | Shape Extractor | Ejects the shape whose code you type (click it to set), for as long as the Vault holds it. No wires needed. |
 | Overflow Extractor | Ejects everything above an amount you set, keeping that amount of each shape. No wires needed. |
+| Low-Stock Extractor | Ejects, one by one, every shape the Vault holds fewer of than an amount you set, until that shape is gone from the Vault. No wires needed. |
 | Vault Sensor | Wires layer. With a shape on the pin: 1 if the Vault holds more than the amount you set, else 0. With nothing connected: reports the stock. |
 
 ## Statistics window (F6)
